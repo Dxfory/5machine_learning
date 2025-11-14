@@ -1,22 +1,36 @@
+import os
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 import tushare as ts
-from datetime import datetime, timedelta
 
 # ---------------------------------------------------------------------------
 # Tushare initialisation & configuration
 # ---------------------------------------------------------------------------
-# Valid token provided by the user (required for all API calls)
-TUSHARE_TOKEN = "2274b36cdb25742d5954ca7e5cb4a59c709ad32f41202a344f1eegx5"
+# Valid token must be provided via environment variable
+_TUSHARE_TOKEN_ENV = "TUSHARE_TOKEN"
+_pro_client: Optional[Any] = None
 
-if not TUSHARE_TOKEN:
-    raise RuntimeError("Tushare token is empty. Please set TUSHARE_TOKEN before running any scripts.")
 
-ts.set_token(TUSHARE_TOKEN)
-pro = ts.pro_api()
+def _get_pro_client() -> ts.pro_api:
+    """Lazily initialise the Tushare client, ensuring a token is provided."""
+
+    global _pro_client
+    if _pro_client is not None:
+        return _pro_client
+
+    token = os.getenv(_TUSHARE_TOKEN_ENV)
+    if not token:
+        raise RuntimeError(
+            "Tushare token not configured. Please set the TUSHARE_TOKEN environment variable before accessing data."
+        )
+
+    ts.set_token(token)
+    _pro_client = ts.pro_api()
+    return _pro_client
 
 # Expose factor names so strategy modules can stay in sync with the actual
 # factors that we are capable of fetching from Tushare.
@@ -83,8 +97,26 @@ def get_trade_days(start_date: str, end_date: str) -> List[str]:
     cache_key = (start, end)
     if cache_key in _trade_cal_cache:
         return _trade_cal_cache[cache_key]
-    df_calendar = pro.trade_cal(exchange="SSE", start_date=_trade_date_key(start), end_date=_trade_date_key(end), is_open="1", fields="cal_date")
-    trade_days = [datetime.strptime(d, "%Y%m%d").strftime("%Y-%m-%d") for d in df_calendar["cal_date"].tolist()]
+    pro = _get_pro_client()
+    try:
+        df_calendar = pro.trade_cal(
+            exchange="SSE",
+            start_date=_trade_date_key(start),
+            end_date=_trade_date_key(end),
+            is_open="1",
+            fields="cal_date",
+        )
+    except Exception as exc:
+        print(f"WARNING: Failed to fetch trade calendar from Tushare: {exc}")
+        _trade_cal_cache[cache_key] = []
+        return []
+
+    if df_calendar is None or df_calendar.empty or "cal_date" not in df_calendar.columns:
+        print("WARNING: Tushare trade_cal returned empty result or missing 'cal_date'.")
+        _trade_cal_cache[cache_key] = []
+        return []
+
+    trade_days = [datetime.strptime(str(d), "%Y%m%d").strftime("%Y-%m-%d") for d in df_calendar["cal_date"].tolist()]
     trade_days.sort()
     _trade_cal_cache[cache_key] = trade_days
     return trade_days
@@ -93,7 +125,22 @@ def get_trade_days(start_date: str, end_date: str) -> List[str]:
 def _get_index_weight(index_code: str, start_date: str, end_date: str) -> pd.DataFrame:
     cache_key = (index_code, f"{start_date}_{end_date}")
     if cache_key not in _index_weight_cache:
-        _index_weight_cache[cache_key] = pro.index_weight(index_code=index_code, start_date=start_date, end_date=end_date, fields="con_code")
+        pro = _get_pro_client()
+        try:
+            df_weight = pro.index_weight(
+                index_code=index_code,
+                start_date=start_date,
+                end_date=end_date,
+                fields="con_code",
+            )
+        except Exception as exc:
+            print(f"WARNING: Failed to fetch index weights for {index_code}: {exc}")
+            df_weight = pd.DataFrame(columns=["con_code"])
+
+        if df_weight is None or "con_code" not in df_weight.columns:
+            df_weight = pd.DataFrame(columns=["con_code"])
+
+        _index_weight_cache[cache_key] = df_weight
     return _index_weight_cache[cache_key]
 
 
@@ -126,8 +173,19 @@ def get_index_stocks(index_code: str, date: str) -> List[str]:
 def _load_stock_basic() -> pd.DataFrame:
     global _stock_basic_cache
     if _stock_basic_cache is None:
-        _stock_basic_cache = pro.stock_basic(exchange="", list_status="L", fields="ts_code,list_date")
-        _stock_basic_cache["list_date"] = pd.to_datetime(_stock_basic_cache["list_date"], format="%Y%m%d", errors="coerce")
+        pro = _get_pro_client()
+        try:
+            df_basic = pro.stock_basic(exchange="", list_status="L", fields="ts_code,list_date")
+        except Exception as exc:
+            print(f"WARNING: Failed to fetch stock basic info: {exc}")
+            df_basic = pd.DataFrame(columns=["ts_code", "list_date"])
+
+        if df_basic is None:
+            df_basic = pd.DataFrame(columns=["ts_code", "list_date"])
+
+        if not df_basic.empty and "list_date" in df_basic.columns:
+            df_basic["list_date"] = pd.to_datetime(df_basic["list_date"], format="%Y%m%d", errors="coerce")
+        _stock_basic_cache = df_basic
     return _stock_basic_cache
 
 
@@ -168,14 +226,26 @@ def get_stock_pool(date: str, pool_name: str = "ZXBZ") -> List[str]:
 
 def _get_name_change(ts_code: str) -> pd.DataFrame:
     if ts_code not in _namechange_cache:
-        _namechange_cache[ts_code] = pro.namechange(ts_code=ts_code, fields="name,start_date,end_date")
+        pro = _get_pro_client()
+        try:
+            df_change = pro.namechange(ts_code=ts_code, fields="name,start_date,end_date")
+        except Exception as exc:
+            print(f"WARNING: Failed to fetch name change for {ts_code}: {exc}")
+            df_change = pd.DataFrame(columns=["name", "start_date", "end_date"])
+        _namechange_cache[ts_code] = df_change if df_change is not None else pd.DataFrame()
     return _namechange_cache[ts_code]
 
 
 def _get_special_trade(ts_code: str, start: str, end: str) -> pd.DataFrame:
     key = (ts_code, f"{start}_{end}")
     if key not in _special_trade_cache:
-        _special_trade_cache[key] = pro.stk_special_trade(ts_code=ts_code, start_date=start, end_date=end)
+        pro = _get_pro_client()
+        try:
+            df_special = pro.stk_special_trade(ts_code=ts_code, start_date=start, end_date=end)
+        except Exception as exc:
+            print(f"WARNING: Failed to fetch special trade info for {ts_code}: {exc}")
+            df_special = pd.DataFrame()
+        _special_trade_cache[key] = df_special if df_special is not None else pd.DataFrame()
     return _special_trade_cache[key]
 
 
@@ -197,7 +267,17 @@ def _get_daily(trade_date: str) -> pd.DataFrame:
     trade_date = _format_date(trade_date)
     key = _trade_date_key(trade_date)
     if key not in _daily_cache:
-        _daily_cache[key] = pro.daily(trade_date=key, fields="ts_code,close,pct_chg")
+        pro = _get_pro_client()
+        try:
+            df_daily = pro.daily(trade_date=key, fields="ts_code,close,pct_chg")
+        except Exception as exc:
+            print(f"WARNING: Failed to fetch daily data for {trade_date}: {exc}")
+            df_daily = pd.DataFrame(columns=["ts_code", "close", "pct_chg"])
+
+        if df_daily is None:
+            df_daily = pd.DataFrame(columns=["ts_code", "close", "pct_chg"])
+
+        _daily_cache[key] = df_daily
     return _daily_cache[key]
 
 
@@ -205,7 +285,17 @@ def _get_daily_basic(trade_date: str) -> pd.DataFrame:
     trade_date = _format_date(trade_date)
     key = _trade_date_key(trade_date)
     if key not in _daily_basic_cache:
-        _daily_basic_cache[key] = pro.daily_basic(trade_date=key, fields=_DAILY_BASIC_FIELDS)
+        pro = _get_pro_client()
+        try:
+            df_daily_basic = pro.daily_basic(trade_date=key, fields=_DAILY_BASIC_FIELDS)
+        except Exception as exc:
+            print(f"WARNING: Failed to fetch daily_basic for {trade_date}: {exc}")
+            df_daily_basic = pd.DataFrame(columns=_DAILY_BASIC_FIELDS.split(","))
+
+        if df_daily_basic is None:
+            df_daily_basic = pd.DataFrame(columns=_DAILY_BASIC_FIELDS.split(","))
+
+        _daily_basic_cache[key] = df_daily_basic
     return _daily_basic_cache[key]
 
 
@@ -214,11 +304,18 @@ def _get_daily_basic_range(start_date: str, end_date: str) -> pd.DataFrame:
     end = _trade_date_key(_format_date(end_date))
     key = (start, end)
     if key not in _daily_basic_range_cache:
-        df = pro.query("daily_basic", start_date=start, end_date=end, fields=_DAILY_BASIC_FIELDS)
-        if df.empty:
-            _daily_basic_range_cache[key] = df
+        pro = _get_pro_client()
+        try:
+            df = pro.query("daily_basic", start_date=start, end_date=end, fields=_DAILY_BASIC_FIELDS)
+        except Exception as exc:
+            print(f"WARNING: Failed to fetch daily_basic range {start}-{end}: {exc}")
+            df = pd.DataFrame(columns=_DAILY_BASIC_FIELDS.split(","))
+
+        if df is None or df.empty:
+            _daily_basic_range_cache[key] = pd.DataFrame(columns=_DAILY_BASIC_FIELDS.split(","))
         else:
-            df["trade_date"] = pd.to_datetime(df["trade_date"], format="%Y%m%d")
+            if "trade_date" in df.columns:
+                df["trade_date"] = pd.to_datetime(df["trade_date"], format="%Y%m%d", errors="coerce")
             _daily_basic_range_cache[key] = df
     return _daily_basic_range_cache[key]
 
