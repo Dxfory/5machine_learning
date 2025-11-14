@@ -515,8 +515,8 @@ class MonthlyRolling5ModelStrategy:
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         if not self.is_trained or not self.selected_features:
-            print("Model not trained, returning random predictions")
-            return np.random.random(len(X))
+            print("Model not trained. Returning zero predictions as a safe fallback.")
+            return np.zeros(len(X))
         X_aligned = self.prepare_prediction_features(X)
         if X_aligned.empty:
             return np.zeros(len(X))
