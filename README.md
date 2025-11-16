@@ -27,9 +27,11 @@ Train **5 machine-learning models** on a rolling window:
 - Random Forest  
 - Linear Regression  
 
-Evaluate models using **MSE (mean squared error)** and compute **dynamic ensemble weights**:
+Train 5 machine-learning models on a rolling window, then compute a **combined loss
+(future-return MSE + 3-class accuracy term)** for each model and use it for **dynamic
+ensemble weighting**:
 
-- Lower error → higher weight  
+- Lower combined loss → higher weight  
 - Persistently poor models → penalized  
 
 Rebalance every **10 trading days**, holding **top 5 high-scoring stocks**, with simple risk filters.
@@ -89,15 +91,15 @@ Register callbacks:
 
 ### **Rolling Training (≈ every 3 months)**
 - Uses a **dynamic training window (24 / 36 / 48 months)** based on recent HS300 volatility; 36 months is the default regime. 
-- Compute MSE  
-- Update rolling-MSE window  
+- Compute combined loss (future-return MSE + 3-class accuracy term)
+- Update rolling combined-loss window
 - Apply penalty for weak models  
 - Save model files  
 
-### **Daily Stock Scoring**
+### **Stock Scoring on Rebalancing Days**
 - Filter universe  
 - Fetch factor values  
-- Score via weighted ensemble  
+- Score via weighted ensemble (only on rebalancing days, every 10 trading days)
 
 ### **Periodic Rebalancing (every 10 days)**
 - Sell dropped names  
@@ -118,7 +120,8 @@ Register callbacks:
 - Universe filters:
   - Remove ST stocks  
   - Remove ChiNext/STAR/BSE boards  
-
+  - Remove newly listed stocks (< 90 days) in the training universe
+    
 ### Features (~79 factors)
 Categories:
 - Fundamental  
@@ -163,15 +166,17 @@ Each model is evaluated using a **combined loss** (regression MSE on future retu
 
 ### Rolling combined loss (MSE + 3-class) Window
 - Keep last **3 rounds**
-- Use average as **rolling_mse**
+- Use average as **rolling combined loss**
 
 ### Low-Contribution Penalty
-If recent rolling MSE > 1.5 × mean → **penalty = 0.5**  
+If recent rolling combined loss > 1.5 × mean → **penalty = 0.5**  
 
 ### **Weight Formula**
 
 <img width="1428" height="987" alt="image" src="https://github.com/user-attachments/assets/ba7e6795-4a28-4c97-9add-aadd363a1a62" />
-
+weight_i ∝ (1 / rolling combined loss_i) × penalty_i
+Lower combined loss → larger weight
+Weak models → explicit penalty
 
 ---
 
