@@ -1,5 +1,5 @@
 # 🧠 Machine-Learning Multi-Strategy  
-## **5-Model MSE-Weighted Rolling Training (JoinQuant Only)**
+## **5-Model MSE + 3-class accuracy combined loss weighted Rolling Training (JoinQuant Only)**
 
 ---
 
@@ -74,7 +74,7 @@ Access to:
 # **3. High-Level Strategy Flow**
 
 ### **Initialization (`initialize`)**
-- Set benchmark: **399101.XSHE (Shenzhen Composite)**
+- Set benchmark: **399101.XSHE (SZSE SME Composite)**
 - Configure slippage & transaction cost  
 - Instantiate `MonthlyRolling5ModelStrategy`  
 - Load or train model  
@@ -88,7 +88,7 @@ Register callbacks:
 | 09:30 | Trading/rebalancing | `trading_logic` |
 
 ### **Rolling Training (≈ every 3 months)**
-- Train on **36 months** of history  
+- Uses a **dynamic training window (24 / 36 / 48 months)** based on recent HS300 volatility; 36 months is the default regime. 
 - Compute MSE  
 - Update rolling-MSE window  
 - Apply penalty for weak models  
@@ -114,11 +114,10 @@ Register callbacks:
 - Retrain every **60 trading days** (configurable)
 
 ### Training Data
-- Window: **36 months**
+- Window: Uses a **dynamic training window (24 / 36 / 48 months)** based on recent HS300 volatility; 36 months is the default regime.
 - Universe filters:
   - Remove ST stocks  
   - Remove ChiNext/STAR/BSE boards  
-  - Remove newly listed (<90 days)  
 
 ### Features (~79 factors)
 Categories:
@@ -156,13 +155,13 @@ Models trained on identical features:
 | Random Forest | Robust ensembles |
 | Linear Regression | Stabilizes ensemble |
 
-All evaluated using **MSE** on validation set.
+Each model is evaluated using a **combined loss** (regression MSE on future return + 3-class accuracy), and the dynamic weights are computed from this rolling loss.
 
 ---
 
 ## **4.3 Dynamic Weighting Formula**
 
-### Rolling MSE Window
+### Rolling combined loss (MSE + 3-class) Window
 - Keep last **3 rounds**
 - Use average as **rolling_mse**
 
@@ -191,7 +190,7 @@ Remove:
 - ChiNext / STAR / BSE  
 - ST stocks  
 - Suspended stocks  
-- Newly listed (<90 days)  
+- Newly listed filters are applied in the training universe, but not in the live stock selection step (for now).
 
 ### Factor Data & Scoring
 - Fetch using `get_factor_values`  
