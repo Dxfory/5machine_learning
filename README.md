@@ -1,4 +1,3 @@
-# 5machine_learning
 Machine-Learning Multi-Strategy: 5-Model MSE-Weighted Rolling Training (JoinQuant Only)
 
 Important
@@ -234,122 +233,23 @@ If a model’s last 2 rolling MSE values are both greater than 1.5 × global_mea
 
 Weight formula
 
-For each model 
-𝑖
-i, define:
+For each model i, define:
 
-rolling_mse
-𝑖
-rolling_mse
-i
-	​
+rolling_mse_i: rolling average MSE over the last 3 rounds
 
-: rolling average MSE over the last 3 rounds
+penalty_i:
 
-penalty
-𝑖
-penalty
-i
-	​
-
-:
-
-1.0
 1.0 for normal models
 
-0.5
 0.5 for low-contribution models
 
-𝜀
-ε: a small constant (e.g. 
-1
-×
-10
-−
-8
-1×10
-−8
-) to avoid division by zero
+ε: a small constant (e.g. 1×10−8) to avoid division by zero
 
-Then the weight of model 
-𝑖
-i is:
+Then the weight of model i is:
 
-weight
-𝑖
-=
-1
-rolling_mse
-𝑖
-+
-𝜀
-⋅
-penalty
-𝑖
-∑
-𝑘
-=
-1
-𝑛
-[
-1
-rolling_mse
-𝑘
-+
-𝜀
-⋅
-penalty
-𝑘
-]
-weight
-i
-	​
+weight_i = (1/(rolling_mse_i + ε) * penalty_i) / Σk=1..n [1/(rolling_mse_k + ε) * penalty_k]
 
-=
-∑
-k=1
-n
-	​
-
-[
-rolling_mse
-k
-	​
-
-+ε
-1
-	​
-
-⋅penalty
-k
-	​
-
-]
-rolling_mse
-i
-	​
-
-+ε
-1
-	​
-
-⋅penalty
-i
-	​
-
-	​
-
-
-Lower MSE → larger 
-1
-/
-rolling_mse
-𝑖
-1/rolling_mse
-i
-	​
-
- → larger weight
+Lower MSE → larger 1/rolling_mse_i → larger weight
 
 Consistently bad models get explicitly penalized via penalty_i = 0.5.
 
