@@ -170,13 +170,8 @@ If recent rolling MSE > 1.5 × mean → **penalty = 0.5**
 
 ### **Weight Formula**
 
-<img width="1296" height="261" alt="image" src="https://github.com/user-attachments/assets/5dc0f7d1-be9a-47f4-ab5a-49481829add5" />
+<img width="1428" height="987" alt="image" src="https://github.com/user-attachments/assets/ba7e6795-4a28-4c97-9add-aadd363a1a62" />
 
-
-- Lower MSE → larger weight  
-- Weak models → explicit penalty  
-
-Final score = weighted average of 5 model predictions.
 
 ---
 
