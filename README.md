@@ -172,13 +172,6 @@ If recent rolling MSE > 1.5 × mean → **penalty = 0.5**
 ### **Weight Formula**
 
 <img width="1296" height="261" alt="image" src="https://github.com/user-attachments/assets/5dc0f7d1-be9a-47f4-ab5a-49481829add5" />
-**Weight formula**
-
-\[
-w_i \propto \frac{1}{\mathrm{RollingLoss}_i + \epsilon} \times \mathrm{Penalty}_i
-\]
-
-where Penalty\_i = 0.5 if the last two rolling losses are both > 1.5× the global mean, otherwise 1.0.
 
 
 - Lower MSE → larger weight  
