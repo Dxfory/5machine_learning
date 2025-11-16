@@ -171,11 +171,8 @@ If recent rolling MSE > 1.5 × mean → **penalty = 0.5**
 
 ### **Weight Formula**
 
-\[
-\text{weight}_i=
-\frac{\frac{1}{\text{rolling\_mse}_i + \epsilon} \cdot \text{penalty}_i}
-{\sum_{k=1}^{n}{\frac{1}{\text{rolling\_mse}_k + \epsilon} \cdot \text{penalty}_k}}
-\]
+<img width="1296" height="261" alt="image" src="https://github.com/user-attachments/assets/5dc0f7d1-be9a-47f4-ab5a-49481829add5" />
+
 
 - Lower MSE → larger weight  
 - Weak models → explicit penalty  
