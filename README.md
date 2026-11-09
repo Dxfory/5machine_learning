@@ -1,12 +1,14 @@
 # 5-Model Rolling Ensemble for A-Share Stock Selection (JoinQuant)
 
-**Combined-loss (MSE + 3-class accuracy) dynamic weighting · research Sharpe 2.499**
+**JoinQuant research backtest, benchmark 399101.XSHE, initial capital ¥100,000, 2024-11-15 → 2025-11-15.**
 
-> **Research backtest · 研究回测** — JoinQuant screenshots `v1.0.png` / `v2.0.png`, initial capital **¥100,000**.
-> - **v2.0:** Sharpe **2.499**, return **70.90%** (2024-11-15 → 2025-11-15)
-> - **v1.0:** Sharpe **2.033**, return **58.49%**
+> **v2:** Sharpe **2.499**, return **70.90%**, annualized **73.56%**, excess **37.00%** against a benchmark return of **24.74%**, alpha **0.521**, beta **0.810**, max drawdown **20.11%**.
 >
-> Five-model rolling ensemble (LightGBM · XGBoost · SVR · RF · Linear) with combined-loss dynamic weighting on JoinQuant. v1 → v2 raised Sharpe from **2.033** to **2.499** and return from **58.49%** to **70.90%**.
+> **v1** on the same window: Sharpe **2.033**, return **58.49%**, annualized **60.69%**, excess **27.05%**, max drawdown **23.49%**.
+>
+> v1 to v2 on one research window: Sharpe 2.033 to 2.499, return 58.49% to 70.90%, excess 27.05% to 37.00%, max drawdown 23.49% to 20.11%. Five-model rolling ensemble (LightGBM, XGBoost, SVR, Random Forest, Linear), about 79 factors, regime windows of 24 / 36 / 48 months, retrain every ~60 trading days (≈ quarterly), rebalance every 10 trading days, top 5 names.
+
+The strategy runs on JoinQuant (`jqdata`, `jqfactor`). Screenshots: `v2.0.png`, `v1.0.png`. CI compiles `main.py` and `scripts/` with `python -m py_compile` and stays off JoinQuant credentials.
 
 ![v1.0 research backtest](v1.0.png)
 ![v2.0 research backtest](v2.0.png)
@@ -15,7 +17,7 @@
 
 ## Platform
 
-Built on JoinQuant's research APIs (`jqdata`, `jqfactor`, scheduling). A local port needs a data provider and a backtest loop.
+The strategy runs on JoinQuant (`jqdata`, `jqfactor`). A local research runtime pairs a data provider with the same rebalance clock.
 
 ---
 
@@ -26,32 +28,32 @@ This project implements a **multi-model, dynamically weighted ensemble stock-pic
 ### **Core idea**
 Train **5 machine-learning models** on a rolling window:
 
-- LightGBM  
-- XGBoost  
-- SVR  
-- Random Forest  
-- Linear Regression  
+- LightGBM 
+- XGBoost 
+- SVR 
+- Random Forest 
+- Linear Regression 
 
 Train 5 machine-learning models on a rolling window, then compute a **combined loss
 (future-return MSE + 3-class accuracy term)** for each model and use it for **dynamic
 ensemble weighting**:
 
-- Lower combined loss → higher weight  
-- Persistently poor models → penalized  
+- Lower combined loss → higher weight 
+- Persistently poor models → penalized 
 
 Rebalance every **10 trading days**, holding **top 5 high-scoring stocks**, with risk filters on ST names, new listings, and boards.
 
 This is a **framework-oriented** strategy emphasizing:
 
-- Rolling training pipeline design  
-- Multi-model dynamic weighting  
-- JoinQuant periodic rebalancing workflow  
+- Rolling training pipeline design 
+- Multi-model dynamic weighting 
+- JoinQuant periodic rebalancing workflow 
 
 ---
 
-# **2. Platform & Environment Requirements (JoinQuant Only)**
+# **2. Platform**
 
-This code assumes it is running **inside JoinQuant** with:
+The strategy runs on JoinQuant (`jqdata`, `jqfactor`):
 
 ```python
 from jqdata import *
@@ -60,13 +62,13 @@ from jqfactor import get_factor_values
 
 Access to:
 
-- Price data  
-- Factor data  
-- Index constituents  
-- Trading calendar  
-- Strategy lifecycle APIs (`initialize`, `run_daily`, `order_target_value`, etc.)  
+- Price data 
+- Factor data 
+- Index constituents 
+- Trading calendar 
+- Strategy lifecycle APIs (`initialize`, `run_daily`, `order_target_value`, etc.) 
 
-A local port needs a data provider and a backtest loop on top of these APIs.
+A local research runtime pairs a data provider and a backtest loop with these APIs.
 
 ---
 
@@ -74,9 +76,9 @@ A local port needs a data provider and a backtest loop on top of these APIs.
 
 ### **Initialization (`initialize`)**
 - Set benchmark: **399101.XSHE (SZSE SME Composite)**
-- Configure slippage & transaction cost  
-- Instantiate `MonthlyRolling5ModelStrategy`  
-- Load or train model  
+- Configure slippage & transaction cost 
+- Instantiate `MonthlyRolling5ModelStrategy` 
+- Load or train model 
 
 Register callbacks:
 
@@ -90,18 +92,18 @@ Register callbacks:
 - Uses a **dynamic training window (24 / 36 / 48 months)** based on recent HS300 volatility; 36 months is the default regime. 
 - Compute combined loss (future-return MSE + 3-class accuracy term)
 - Update rolling combined-loss window
-- Apply penalty for weak models  
-- Save model files  
+- Apply penalty for weak models 
+- Save model files 
 
 ### **Stock Scoring on Rebalancing Days**
-- Filter universe  
-- Fetch factor values  
-- Score via weighted ensemble (only on rebalancing days, every 10 trading days)
+- Filter universe 
+- Fetch factor values 
+- Score via weighted ensemble on rebalancing days, every 10 trading days
 
 ### **Periodic Rebalancing (every 10 days)**
-- Sell dropped names  
-- Buy/hold top N stocks  
-- Basic risk filters  
+- Sell dropped names 
+- Buy/hold top N stocks 
+- Basic risk filters 
 
 ---
 
@@ -115,31 +117,31 @@ Register callbacks:
 ### Training Data
 - Window: Uses a **dynamic training window (24 / 36 / 48 months)** based on recent HS300 volatility; 36 months is the default regime.
 - Universe filters:
-  - Remove ST stocks  
-  - Remove ChiNext/STAR/BSE boards  
-  - Remove newly listed stocks (< 90 days) in the training universe
-    
+ - Remove ST stocks 
+ - Remove ChiNext/STAR/BSE boards 
+ - Remove newly listed stocks (< 90 days) in the training universe
+ 
 ### Features (~79 factors)
 Categories:
-- Fundamental  
-- Valuation  
-- Technical  
-- Risk  
+- Fundamental 
+- Valuation 
+- Technical 
+- Risk 
 
 ### Labels
-- Regression: future return  
-- Binary: above/below cross-section median  
-- 3-class: return quantiles (25% / 75%)  
+- Regression: future return 
+- Binary: above/below cross-section median 
+- 3-class: return quantiles (25% / 75%) 
 
 ### Preprocessing
-- Median fill  
-- Replace inf  
-- Outlier clipping  
-- RobustScaler normalization  
+- Median fill 
+- Replace inf 
+- Outlier clipping 
+- RobustScaler normalization 
 
 ### Feature Selection
-- Correlation graph (|corr| > 0.6)  
-- Keep 1 factor per correlated cluster  
+- Correlation graph (|corr| > 0.6) 
+- Keep 1 factor per correlated cluster 
 
 ---
 
@@ -166,7 +168,7 @@ Each model is evaluated using a **combined loss** (regression MSE on future retu
 - Use average as **rolling combined loss**
 
 ### Low-Contribution Penalty
-If recent rolling combined loss > 1.5 × mean → **penalty = 0.5**  
+If recent rolling combined loss > 1.5 × mean → **penalty = 0.5** 
 
 ### **Weight Formula**
 
@@ -184,99 +186,97 @@ Weak models → explicit penalty
 
 ### Risk Filters
 Remove:
-- ChiNext / STAR / BSE  
-- ST stocks  
-- Suspended stocks  
-- Newly listed filters are applied in the training universe, but not in the live stock selection step (for now).
+- ChiNext / STAR / BSE 
+- ST stocks 
+- Suspended stocks 
+
+The training universe applies the newly listed filter. Live stock selection on each rebalance applies the ST, suspension, and ChiNext / STAR / BSE board filters.
 
 ### Factor Data & Scoring
-- Fetch using `get_factor_values`  
-- Run ensemble to generate score  
-- Higher score → better expected return  
+- Fetch using `get_factor_values` 
+- Run ensemble to generate score 
+- Higher score → better expected return 
 
 ### Final Portfolio
-- Sort by score  
-- Select **Top 5** stocks  
-- If model untrained → fallback baseline selection  
+- Sort by score 
+- Select **Top 5** stocks 
+- If model untrained → fallback baseline selection 
 
 ---
 
 # **6. Trading & Rebalancing Logic**
 
 ### Rebalance Frequency
-- First day → always  
-- Then every **10 trading days**  
+- First day → always 
+- Then every **10 trading days** 
 
 ### Sell Rules
-- If stock not in target list → sell  
+- Names outside the target list are sold 
 
 ### Buy Rules
-- Equal-weight among target holdings  
-- Check liquidity/risk  
+- Equal-weight among target holdings 
+- Check liquidity/risk 
 
 ### Risk Control
-- Fixed number of holdings  
-- Low turnover  
-- Benchmark tracking  
+- Fixed number of holdings 
+- Low turnover 
+- Benchmark tracking 
 
 Rebalancing stays on a fixed 10-trading-day clock, so the research backtest measures the ensemble score.
 
 ---
 
-# **7. Design Goals & Next Steps**
+# **7. Result on this research window**
 
-## Goals
-- Multi-model ensemble with rolling training  
-- Dynamic weight allocation  
-- Penalty for underperforming models  
-- End-to-end JoinQuant ML workflow  
+v1 to v2 on one research window: Sharpe **2.033** to **2.499**, return **58.49%** to **70.90%**, excess **27.05%** to **37.00%**, max drawdown **23.49%** to **20.11%**. Five-model rolling ensemble (LightGBM, XGBoost, SVR, Random Forest, Linear), about 79 factors, regime windows of 24 / 36 / 48 months, retrain every ~60 trading days (≈ quarterly), rebalance every 10 trading days, top 5 names, benchmark **399101.XSHE**, initial capital **¥100,000**.
 
-## Next steps
-Factor engineering, model choice, risk, and execution continue in the roadmap below. A local port needs a data provider and a backtest loop.
+The strategy runs on JoinQuant (`jqdata`, `jqfactor`).
 
 ---
 
 # **8. How to Use (JoinQuant)**
 
-1. Log into JoinQuant research environment  
-2. Create a new strategy  
-3. Copy the entire code into the script  
+1. Log into JoinQuant research environment 
+2. Create a new strategy 
+3. Copy the entire code into the script 
 4. Ensure you have:
-   - `jqdata` & `jqfactor` permissions  
-   - Read/write local file access  
+ - `jqdata` & `jqfactor` permissions 
+ - Read/write local file access 
 
 ### **Backtest**
-- If no saved model → first run triggers full training  
-- Then rolling training automatically happens per schedule  
+- An empty model store on the first run triggers full training 
+- Then rolling training automatically happens per schedule 
 
 ---
 
-# **9. Roadmap / Possible Extensions**
+# **9. Forward roadmap**
 
-### **Factor Engineering**
-- Industry-neutral factors  
-- Style factors  
-- Alternative data  
+The research program ahead builds on the v2 result above.
 
-### **Model Improvements**
-- CatBoost / NN models  
-- Cross-validation  
-- Hyperparameter optimization  
+### **Factor engineering**
+- Industry-neutral factors 
+- Style factors 
+- Alternative data 
 
-### **Risk Management**
-- Industry diversification  
-- Volatility-based allocation  
-- Dynamic stop-loss  
+### **Model program**
+- CatBoost and neural-net members in the ensemble 
+- Cross-validation on the rolling window 
+- Hyperparameter search inside the same retrain clock 
 
-### **Execution Layer**
-- More realistic slippage  
-- Intraday modeling  
-- Liquidity constraints  
+### **Risk program**
+- Industry diversification 
+- Volatility-based allocation 
+- Dynamic stop-loss 
 
-### **Local/Offline Version**
-- Custom DataProvider  
-- Custom backtest loop  
-- Integrate with JoinQuant official API (paid)  
+### **Execution program**
+- Slippage model aligned to the printed commission and impact settings 
+- Intraday modeling 
+- Liquidity constraints 
+
+### **Local research runtime**
+- Data provider beside the JoinQuant research APIs 
+- Backtest loop for the same 10-trading-day rebalance clock 
+- JoinQuant official API for data access 
 
 ---
 
