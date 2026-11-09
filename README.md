@@ -1,6 +1,10 @@
 # 🧠 Machine-Learning Multi-Strategy  
 ## **5-Model MSE + 3-class accuracy combined loss weighted Rolling Training (JoinQuant Only)**
 
+> **⚠️ 研究回测截图，不是实盘或投资收益。** `v1.0.png` 与 `v2.0.png` 是 JoinQuant 平台上初始资金 ¥10,000 的研究回测截图，不是实盘或投资收益，不代表未来表现，未计入完整交易成本与容量约束。
+>
+> **Research backtest screenshots, not live results.** `v1.0.png` and `v2.0.png` are JoinQuant screenshots of a research backtest started with ¥10,000. They are not live-trading or investment returns, do not represent future performance, and do not include full transaction costs or capacity constraints.
+
 ---
 
 ## ⚠️ **Important**
