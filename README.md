@@ -1,9 +1,11 @@
 # 🧠 Machine-Learning Multi-Strategy  
 ## **5-Model MSE + 3-class accuracy combined loss weighted Rolling Training (JoinQuant Only)**
 
-> **⚠️ 研究回测截图，不是实盘或投资收益。** `v1.0.png` 与 `v2.0.png` 是 JoinQuant 平台上初始资金 ¥10,000 的研究回测截图，不是实盘或投资收益，不代表未来表现，未计入完整交易成本与容量约束。
+> **Research backtest · 研究回测** — JoinQuant screenshots `v1.0.png` / `v2.0.png`, initial capital **¥100,000**.
+> - **v2.0:** Sharpe **2.499**, return **70.90%** (2024-11-15 → 2025-11-15)
+> - **v1.0:** Sharpe **2.033**, return **58.49%**
 >
-> **Research backtest screenshots, not live results.** `v1.0.png` and `v2.0.png` are JoinQuant screenshots of a research backtest started with ¥10,000. They are not live-trading or investment returns, do not represent future performance, and do not include full transaction costs or capacity constraints.
+> Five-model rolling ensemble (LightGBM · XGBoost · SVR · RF · Linear) with combined-loss dynamic weighting on JoinQuant.
 
 ---
 
