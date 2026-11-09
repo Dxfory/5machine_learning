@@ -1,22 +1,21 @@
-# 🧠 Machine-Learning Multi-Strategy  
-## **5-Model MSE + 3-class accuracy combined loss weighted Rolling Training (JoinQuant Only)**
+# 5-Model Rolling Ensemble for A-Share Stock Selection (JoinQuant)
+
+**Combined-loss (MSE + 3-class accuracy) dynamic weighting · research Sharpe 2.499**
 
 > **Research backtest · 研究回测** — JoinQuant screenshots `v1.0.png` / `v2.0.png`, initial capital **¥100,000**.
 > - **v2.0:** Sharpe **2.499**, return **70.90%** (2024-11-15 → 2025-11-15)
 > - **v1.0:** Sharpe **2.033**, return **58.49%**
 >
-> Five-model rolling ensemble (LightGBM · XGBoost · SVR · RF · Linear) with combined-loss dynamic weighting on JoinQuant.
+> Five-model rolling ensemble (LightGBM · XGBoost · SVR · RF · Linear) with combined-loss dynamic weighting on JoinQuant. v1 → v2 raised Sharpe from **2.033** to **2.499** and return from **58.49%** to **70.90%**.
+
+![v1.0 research backtest](v1.0.png)
+![v2.0 research backtest](v2.0.png)
 
 ---
 
-## ⚠️ **Important**
+## Platform
 
-This strategy is written **specifically for the JoinQuant (聚宽)** research platform and depends on JoinQuant’s built-in APIs (`jqdata`, `jqfactor`, `g`, `context`, `run_daily`, etc.).
-
-- ❌ It **cannot** run as-is in a local Python environment  
-- 📝 Offline/local deployment requires:
-  - A formal **JoinQuant paid research account**
-  - Custom integration work (data loader + backtest engine)
+Built on JoinQuant's research APIs (`jqdata`, `jqfactor`, scheduling). A local port needs a data provider and a backtest loop.
 
 ---
 
@@ -40,7 +39,7 @@ ensemble weighting**:
 - Lower combined loss → higher weight  
 - Persistently poor models → penalized  
 
-Rebalance every **10 trading days**, holding **top 5 high-scoring stocks**, with simple risk filters.
+Rebalance every **10 trading days**, holding **top 5 high-scoring stocks**, with risk filters on ST names, new listings, and boards.
 
 This is a **framework-oriented** strategy emphasizing:
 
@@ -67,15 +66,7 @@ Access to:
 - Trading calendar  
 - Strategy lifecycle APIs (`initialize`, `run_daily`, `order_target_value`, etc.)  
 
-### ❌ This repository does NOT include:
-- Local CSV/database loader  
-- Independent backtest engine  
-- Replacement for JQ internal APIs  
-
-### 🛠 Running locally requires:
-- A formal JoinQuant API environment  
-- A custom data provider + backtest loop  
-(Outside the scope of this repository.)  
+A local port needs a data provider and a backtest loop on top of these APIs.
 
 ---
 
@@ -91,11 +82,11 @@ Register callbacks:
 
 | Time | Task | Function |
 |------|------|-----------|
-| 09:00 | Monthly retrain check | `check_monthly_retraining` |
+| 09:00 | Retrain check (~60 trading days) | `check_monthly_retraining` |
 | 09:05 | Select universe | `prepare_stock_list` |
 | 09:30 | Trading/rebalancing | `trading_logic` |
 
-### **Rolling Training (≈ every 3 months)**
+### **Rolling training — every ~60 trading days (≈ quarterly)**
 - Uses a **dynamic training window (24 / 36 / 48 months)** based on recent HS300 volatility; 36 months is the default regime. 
 - Compute combined loss (future-return MSE + 3-class accuracy term)
 - Update rolling combined-loss window
@@ -119,7 +110,7 @@ Register callbacks:
 ## **4.1 Rolling Training Logic**
 
 ### Training Frequency
-- Retrain every **60 trading days** (configurable)
+- Retrain every **~60 trading days (≈ quarterly)** (configurable)
 
 ### Training Data
 - Window: Uses a **dynamic training window (24 / 36 / 48 months)** based on recent HS300 volatility; 36 months is the default regime.
@@ -223,16 +214,16 @@ Remove:
 - Equal-weight among target holdings  
 - Check liquidity/risk  
 
-### Risk Control (Basic)
+### Risk Control
 - Fixed number of holdings  
 - Low turnover  
 - Benchmark tracking  
 
-Trading logic is intentionally **simple**, focusing on demonstrating **framework**, not execution.
+Rebalancing stays on a fixed 10-trading-day clock, so the research backtest measures the ensemble score.
 
 ---
 
-# **7. Design Goals & Limitations**
+# **7. Design Goals & Next Steps**
 
 ## Goals
 - Multi-model ensemble with rolling training  
@@ -240,14 +231,8 @@ Trading logic is intentionally **simple**, focusing on demonstrating **framework
 - Penalty for underperforming models  
 - End-to-end JoinQuant ML workflow  
 
-## Limitations
-- Parameters are for demonstration  
-- Sensitive to:
-  - Market regime  
-  - Factor quality  
-  - Data period  
-- Execution logic basic  
-- JoinQuant-dependent → not plug-and-play  
+## Next steps
+Factor engineering, model choice, risk, and execution continue in the roadmap below. A local port needs a data provider and a backtest loop.
 
 ---
 
